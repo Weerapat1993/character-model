@@ -1,5 +1,6 @@
 <template>
     <div>
+        <StyledButton primary>Button</StyledButton>
         <div class="text-center">
             <a class="btn btn-default" @click="showCreateClientForm">
                 Create New Gallery
@@ -33,119 +34,126 @@
 </template>
 
 <script>
-    export default {
-        /*
-         * The component's data.
-         */
-        data() {
-            return {
-                galleries: [],
+import {
+    StyledButton
+} from './styled.js'
 
-                createForm: {
-                    errors: [],
-                    name: '',
-                    redirect: ''
-                },
+export default {
+    components: {
+        StyledButton,
+    },
+    /*
+        * The component's data.
+        */
+    data() {
+        return {
+            galleries: [],
 
-                editForm: {
-                    errors: [],
-                    name: '',
-                    redirect: ''
-                }
-            };
+            createForm: {
+                errors: [],
+                name: '',
+                redirect: ''
+            },
+
+            editForm: {
+                errors: [],
+                name: '',
+                redirect: ''
+            }
+        };
+    },
+
+    /**
+        * Prepare the component (Vue 2.x).
+        */
+    mounted() {
+        this.prepareComponent();
+    },
+
+    methods: {
+        prepareComponent() {
+            this.getGalleries();
         },
 
         /**
-         * Prepare the component (Vue 2.x).
-         */
-        mounted() {
-            this.prepareComponent();
+            * Get all of the OAuth clients for the user.
+            */
+        getGalleries() {
+            this.$http.get('/api/gallery')
+                .then(response => {
+                    this.galleries = response.data;
+                });
         },
 
-        methods: {
-            prepareComponent() {
-                this.getGalleries();
-            },
+        /**
+            * Show the form for creating new clients.
+            */
+        showCreateClientForm() {
+            $('#modal-create-gallery').modal('show');
+        },
+
+        /**
+            * Create a new OAuth client for the user.
+            */
+        store(form) {
+            this.persistClient(
+                'post', '/api/gallery/store',
+                form, '#modal-create-gallery'
+            );
+        },
+
+        /**
+            * Edit the given client.
+            */
+        edit(data) {
+            this.editForm.id = data.gallery_id;
+            this.editForm.name = data.gallery_name;
+            this.editForm.redirect = data.gallery_url;
+
+            $('#modal-edit-gallery').modal('show');
+        },
+
+        /**
+            * Update the client being edited.
+            */
+        update(form) {
+            this.persistClient(
+                'put', '/api/gallery/update/' + form.id,
+                form, '#modal-edit-gallery'
+            );
+        },
 
             /**
-             * Get all of the OAuth clients for the user.
-             */
-            getGalleries() {
-                this.$http.get('/api/gallery')
-                    .then(response => {
-                        this.galleries = response.data;
-                    });
-            },
+            * Persist the client to storage using the given form.
+            */
+        persistClient(method, uri, form, modal) {
+            form.errors = [];
 
-            /**
-             * Show the form for creating new clients.
-             */
-            showCreateClientForm() {
-                $('#modal-create-gallery').modal('show');
-            },
+            this.$http[method](uri, form)
+                .then(response => {
+                    this.getGalleries();
 
-            /**
-             * Create a new OAuth client for the user.
-             */
-            store(form) {
-                this.persistClient(
-                    'post', '/api/gallery/store',
-                    form, '#modal-create-gallery'
-                );
-            },
+                    form.name = '';
+                    form.redirect = '';
+                    form.errors = [];
 
-            /**
-             * Edit the given client.
-             */
-            edit(data) {
-                this.editForm.id = data.gallery_id;
-                this.editForm.name = data.gallery_name;
-                this.editForm.redirect = data.gallery_url;
+                    $(modal).modal('hide');
+                })
+                .catch(response => {
+                    if (typeof response.data === 'object') {
+                        form.errors = _.flatten(_.toArray(response.data));
+                    } else {
+                        form.errors = ['Something went wrong. Please try again.'];
+                    }
+                });
+        },
 
-                $('#modal-edit-gallery').modal('show');
-            },
-
-            /**
-             * Update the client being edited.
-             */
-            update(form) {
-                this.persistClient(
-                    'put', '/api/gallery/update/' + form.id,
-                    form, '#modal-edit-gallery'
-                );
-            },
-
-             /**
-             * Persist the client to storage using the given form.
-             */
-            persistClient(method, uri, form, modal) {
-                form.errors = [];
-
-                this.$http[method](uri, form)
-                    .then(response => {
-                        this.getGalleries();
-
-                        form.name = '';
-                        form.redirect = '';
-                        form.errors = [];
-
-                        $(modal).modal('hide');
-                    })
-                    .catch(response => {
-                        if (typeof response.data === 'object') {
-                            form.errors = _.flatten(_.toArray(response.data));
-                        } else {
-                            form.errors = ['Something went wrong. Please try again.'];
-                        }
-                    });
-            },
-
-            destroy(gallery) {
-                this.$http.delete('/api/gallery/destroy/' + gallery.gallery_id)
-                    .then(response => {
-                        this.getGalleries()
-                    });
-            },
-        }
+        destroy(gallery) {
+            this.$http.delete('/api/gallery/destroy/' + gallery.gallery_id)
+                .then(response => {
+                    this.getGalleries()
+                });
+        },
     }
+}
 </script>
